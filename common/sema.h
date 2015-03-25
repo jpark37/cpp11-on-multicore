@@ -8,6 +8,8 @@
 
 #include <atomic>
 #include <cassert>
+#include <condition_variable>
+#include <mutex>
 
 
 #if defined(_WIN32)
@@ -214,6 +216,75 @@ public:
         if (toRelease > 0)
         {
             m_sema.signal(toRelease);
+        }
+    }
+};
+
+
+//---------------------------------------------------------
+// LightweightCondVarSemaphore
+//---------------------------------------------------------
+class LightweightCondVarSemaphore
+{
+private:
+    std::atomic<int> m_count;
+    std::mutex m_mutex;
+    std::condition_variable m_condition;
+    int m_pendingRelease;
+
+    void waitWithPartialSpinning()
+    {
+        int oldCount;
+        // Is there a better way to set the initial spin count?
+        // If we lower it to 1000, testBenaphore becomes 15x slower on my Core i7-5930K Windows PC,
+        // as threads start hitting the kernel semaphore.
+        int spin = 10000;
+        while (spin--)
+        {
+            oldCount = m_count.load(std::memory_order_relaxed);
+            if ((oldCount > 0) && m_count.compare_exchange_strong(oldCount, oldCount - 1, std::memory_order_acquire))
+                return;
+            std::atomic_signal_fence(std::memory_order_acquire);     // Prevent the compiler from collapsing the loop.
+        }
+        oldCount = m_count.fetch_sub(1, std::memory_order_acquire);
+        if (oldCount <= 0)
+        {
+            std::unique_lock<std::mutex> lock(m_mutex);
+            while (m_pendingRelease == 0)
+            {
+                m_condition.wait(lock);
+            }
+            --m_pendingRelease;
+        }
+    }
+
+public:
+    LightweightCondVarSemaphore(int initialCount = 0) : m_count(initialCount), m_pendingRelease(0)
+    {
+        assert(initialCount >= 0);
+    }
+
+    bool tryWait()
+    {
+        int oldCount = m_count.load(std::memory_order_relaxed);
+        return (oldCount > 0 && m_count.compare_exchange_strong(oldCount, oldCount - 1, std::memory_order_acquire));
+    }
+
+    void wait()
+    {
+        if (!tryWait())
+            waitWithPartialSpinning();
+    }
+
+    void signal(int count = 1)
+    {
+        int oldCount = m_count.fetch_add(count, std::memory_order_release);
+        int toRelease = -oldCount < count ? -oldCount : count;
+        if (toRelease > 0)
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_pendingRelease += toRelease;
+            m_condition.notify_all();
         }
     }
 };

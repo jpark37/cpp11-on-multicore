@@ -19,6 +19,9 @@ struct TestInfo
 bool testBenaphore();
 bool testRecursiveBenaphore();
 bool testAutoResetEvent();
+bool testAutoResetEventSemaphore();
+bool testAutoResetEventCondVar();
+bool testAutoResetEventCondVarSemaphore();
 bool testRWLock();
 bool testRWLockSimple();
 bool testDiningPhilosophers();
@@ -29,6 +32,9 @@ TestInfo g_tests[] =
     ADD_TEST(testBenaphore)
     ADD_TEST(testRecursiveBenaphore)
     ADD_TEST(testAutoResetEvent)
+    ADD_TEST(testAutoResetEventSemaphore)
+    ADD_TEST(testAutoResetEventCondVar)
+    ADD_TEST(testAutoResetEventCondVarSemaphore)
     ADD_TEST(testRWLock)
     ADD_TEST(testRWLockSimple)
     ADD_TEST(testDiningPhilosophers)

@@ -9,15 +9,17 @@
 #include <string>
 #include <thread>
 #include "autoresetevent.h"
+#include "autoreseteventcondvar.h"
 
 
 //---------------------------------------------------------
 // AutoResetEventTester
 //---------------------------------------------------------
+template <typename EVENT>
 class AutoResetEventTester
 {
 private:
-    std::unique_ptr<AutoResetEvent[]> m_events;
+    std::unique_ptr<EVENT[]> m_events;
     std::atomic<int> m_counter;
     int m_threadCount;
     int m_iterationCount;
@@ -75,7 +77,7 @@ public:
 
     bool test(int threadCount, int iterationCount)
     {
-        m_events = std::unique_ptr<AutoResetEvent[]>(new AutoResetEvent[threadCount]);
+        m_events = std::unique_ptr<EVENT[]>(new EVENT[threadCount]);
         m_counter.store(0, std::memory_order_relaxed);
         m_threadCount = threadCount;
         m_iterationCount = iterationCount;
@@ -93,6 +95,24 @@ public:
 
 bool testAutoResetEvent()
 {
-    AutoResetEventTester tester;
+    AutoResetEventTester<AutoResetEvent<LightweightSemaphore>> tester;
+    return tester.test(4, 1000000);
+}
+
+bool testAutoResetEventSemaphore()
+{
+    AutoResetEventTester<AutoResetEvent<Semaphore>> tester;
+    return tester.test(4, 1000000);
+}
+
+bool testAutoResetEventCondVar()
+{
+    AutoResetEventTester<AutoResetEventCondVar> tester;
+    return tester.test(4, 1000000);
+}
+
+bool testAutoResetEventCondVarSemaphore()
+{
+    AutoResetEventTester<AutoResetEvent<LightweightCondVarSemaphore>> tester;
     return tester.test(4, 1000000);
 }

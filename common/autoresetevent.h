@@ -14,6 +14,7 @@
 //---------------------------------------------------------
 // AutoResetEvent
 //---------------------------------------------------------
+template <typename SEMAPHORE>
 class AutoResetEvent
 {
 private:
@@ -21,7 +22,7 @@ private:
     // m_status == 0: Event object is reset and no threads are waiting.
     // m_status == -N: Event object is reset and N threads are waiting.
     std::atomic<int> m_status;
-    DefaultSemaphoreType m_sema;
+    SEMAPHORE m_sema;
 
 public:
     AutoResetEvent(int initialStatus = 0) : m_status(initialStatus)
